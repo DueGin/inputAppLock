@@ -129,3 +129,4 @@ echo "    版本：$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionStri
 echo "    架构：$(lipo -archs "$APP_BUNDLE/Contents/MacOS/$APP_NAME")"
 echo "    运行：open \"$APP_BUNDLE\""
 echo "    安装：cp -R \"$APP_BUNDLE\" /Applications/ 然后 open /Applications/$APP_NAME.app"
+echo "    打 dmg：VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PLIST") ./scripts/make_dmg.sh   # 发版用的拖拽安装镜像"

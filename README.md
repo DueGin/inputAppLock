@@ -48,24 +48,26 @@ InputLock 状态摘要
 
 ## 下载安装
 
-不想自己编译就直接去 [Releases](https://github.com/DueGin/inputAppLock/releases) 下载现成的：
+不想自己编译就直接去 [Releases](https://github.com/DueGin/inputAppLock/releases) 下载现成的 DMG 安装镜像：
 
-1. 下载最新版的 `InputLock-<版本>-macos-universal.zip`——通用二进制，Apple Silicon 与 Intel 都能跑，要求 macOS 13+；
-2. 解压，把 `InputLock.app` 拖进 `/Applications`；
-3. **首次打开会被 Gatekeeper 拦下**，这是预期行为：发版产物是 ad-hoc 签名、没做 Apple 公证。任选一种放行：
-   - 终端执行 `xattr -dr com.apple.quarantine /Applications/InputLock.app`，然后正常双击打开；
-   - 或者右键（Control-点击）`InputLock.app` →「打开」→ 弹窗里再点一次「打开」；
+1. 下载最新版的 `InputLock-<版本>.dmg`——通用二进制，Apple Silicon 与 Intel 都能跑，要求 macOS 13+；
+2. 双击打开 dmg，Finder 里会挂载出一个名为 `InputLock <版本>` 的磁盘映像：窗口里左边是 **InputLock**，右边是 **Applications** 文件夹快捷方式；
+3. 把 `InputLock` 拖到 `Applications` 上（等于装到 `/Applications/InputLock.app`），再在 Finder 边栏点 ⏏ 弹出磁盘；
+4. **首次打开会被 Gatekeeper 拦下**，这是预期行为：发版产物是 ad-hoc 签名、没做 Apple 公证。任选一种放行：
+   - 右键（Control-点击）`InputLock.app` →「打开」→ 弹窗里再点一次「打开」；
+   - 或者终端执行 `xattr -dr com.apple.quarantine /Applications/InputLock.app`，然后正常双击打开；
    - 还不行就去「系统设置 › 隐私与安全性」，页面底部点「仍要打开」；
-4. 启动后在「系统设置 › 隐私与安全性 › 辅助功能」里勾选 **InputLock**（详见[授予辅助功能权限](#授予辅助功能权限)）；
-5. 菜单栏出现锁形图标，点菜单「锁定输入法 › 锁定当前输入法」即可。
+   - 连 dmg 本身都被拦的话，同样右键 dmg →「打开」；
+5. 启动后在「系统设置 › 隐私与安全性 › 辅助功能」里勾选 **InputLock**（详见[授予辅助功能权限](#授予辅助功能权限)）；
+6. 菜单栏出现锁形图标，点菜单「锁定输入法 › 锁定当前输入法」即可。
 
-想校验下载完整性的话，把 `.zip` 和同名 `.zip.sha256` 放同一个目录，然后：
+想校验下载完整性的话，把 `.dmg` 和同名 `.dmg.sha256` 放同一个目录，然后：
 
 ```bash
-shasum -a 256 -c InputLock-<版本>-macos-universal.zip.sha256
+shasum -a 256 -c InputLock-<版本>.dmg.sha256
 ```
 
-> 每次更新都是覆盖 `/Applications/InputLock.app`；ad-hoc 签名每次都会变，所以覆盖后可能要在辅助功能里把 InputLock 取消勾选再加回来一次。
+> 每次更新都是下载新 dmg 覆盖安装；ad-hoc 签名每次都会变，所以覆盖后可能要在辅助功能里把 InputLock 取消勾选再加回来一次。
 
 ## 支持的输入法
 
@@ -110,6 +112,9 @@ swift build -c release          # 只编译
 UNIVERSAL=1 ./scripts/build_app.sh                                  # arm64 + x86_64 通用二进制
 VERSION=1.2.3 ./scripts/build_app.sh                                # 把版本号写进 .app 内的 Info.plist
 UNIVERSAL=1 VERSION=1.2.3 BUILD_NUMBER=42 ./scripts/build_app.sh    # CI 发版用的组合
+
+# 打成可分发的 DMG 安装镜像（发版产物）
+VERSION=1.2.3 ./scripts/make_dmg.sh                                 # -> build/InputLock-1.2.3.dmg
 ```
 
 `scripts/build_app.sh` 会做这些事：
@@ -124,6 +129,27 @@ UNIVERSAL=1 VERSION=1.2.3 BUILD_NUMBER=42 ./scripts/build_app.sh    # CI 发版�
 
 > ad-hoc 签名只适合本机自用。要分发给别人（或避免每次重编译后重新授权），需要开发者证书正式签名：
 > `codesign --force --deep --sign "Developer ID Application: ..." build/InputLock.app`
+
+### 打包 DMG 安装镜像
+
+发版产物是 DMG，不是 zip。`.app` 打好之后再跑：
+
+```bash
+VERSION=1.2.3 ./scripts/make_dmg.sh
+# 一步到位：UNIVERSAL=1 VERSION=1.2.3 ./scripts/build_app.sh && VERSION=1.2.3 ./scripts/make_dmg.sh
+```
+
+产物只写 `build/`：`InputLock-<版本>.dmg` 与 `InputLock-<版本>.dmg.sha256`。脚本零依赖，只用系统自带的 `hdiutil` / `ditto` / `codesign` / `shasum`，流程是：
+
+1. 临时目录搭 staging：`ditto` 复制 `InputLock.app`（保留签名与扩展属性）+ `ln -s /Applications Applications`；
+2. `hdiutil create` 出 HFS+ 可写镜像，卷名 `InputLock <版本>`；
+3. 挂载后用 Finder AppleScript 设窗口大小与图标位置（**仅本地图形会话**；CI / SSH / 无 Finder 时自动跳过，失败也不影响构建，另有超时兜底）；
+4. 把 `Resources/AppIcon.icns` 复制成卷根 `.VolumeIcon.icns`，再用 `SetFile -a C` 打上「自定义图标」位（没有 `SetFile` 就跳过）——这一步必须放在 Finder 布局**之后**，否则 Finder 打开可写卷时会把图标文件删掉；
+5. `hdiutil convert -format UDZO` 压成只读镜像，然后 `codesign --force --sign -` 给 dmg 本身 ad-hoc 签名；
+6. 校验：`hdiutil verify`，再只读挂载到临时挂载点，确认 `InputLock.app` 与 `Applications` 快捷方式都在，把 app 拷出来跑 `codesign --verify --deep --strict` 与 `lipo -archs`，最后 `detach`；
+7. 最后才算 `sha256`（签名会改文件，哈希必须放在最后）。
+
+可调环境变量：`VOL_NAME`（卷名）、`DMG_FORMAT`（默认 `UDZO`，可换 `ULFO`）、`DMG_FS`（默认 `HFS+`）、`FINDER_LAYOUT=0`（跳过 Finder 布局）、`SKIP_VERIFY=1`（跳过挂载校验，平时别关）。
 
 ## 从源码安装
 
@@ -152,14 +178,18 @@ push 匹配 `v*` 的 tag 后，GitHub Actions（`macos-15`，arm64 runner）自�
 
 1. 从 tag 名去掉前缀 `v` 得到版本号（`v1.0.0` → `1.0.0`），`CFBundleVersion` 用 `GITHUB_RUN_NUMBER`；
 2. `UNIVERSAL=1 VERSION=<版本> ./scripts/build_app.sh` 构建 arm64 + x86_64 通用 `.app`（ad-hoc 签名）；
-3. `ditto -c -k --keepParent --norsrc --noextattr` 打成 `InputLock-<版本>-macos-universal.zip` 并生成 `.sha256`（`--norsrc --noextattr` 是为了不把 `._*` AppleDouble 文件塞进包里，否则 `unzip` 解压后签名校验会失败）；
-4. 用 `softprops/action-gh-release` 创建 Release：自动生成 release notes，上传 zip 与 sha256，正文附带安装说明（解压拖入 `/Applications`、`xattr` 放行 Gatekeeper、辅助功能授权）。
+3. `VERSION=<版本> ./scripts/make_dmg.sh` 打出拖拽安装的 `InputLock-<版本>.dmg`（内含 `InputLock.app` + `Applications` 快捷方式 + 卷图标），并生成 `.dmg.sha256`；
+4. 用 `softprops/action-gh-release@v3` 创建 Release：自动生成 release notes，**只上传 dmg 与 dmg.sha256**，正文附带安装说明（双击 dmg、拖进 Applications、`xattr` / 右键放行 Gatekeeper、辅助功能授权）。
+
+> 发版不再产出 zip。`.app` 只是 runner 上的中间产物；需要 zip 就本地自己打：
+> `ditto -c -k --keepParent --norsrc --noextattr build/InputLock.app build/InputLock.zip`。
 
 其他说明：
 
-- **手动测试**：Actions → Release → Run workflow（`workflow_dispatch`）。手动触发只构建并上传 artifact，**不创建 Release**，方便先验证流水线；
-- **本地模拟一次发版**：`UNIVERSAL=1 VERSION=1.2.3 ./scripts/build_app.sh`，产物在 `build/InputLock.app`，再用 `lipo -archs` 和 `PlistBuddy` 检查；
-- **签名**：发版保持 ad-hoc 签名，不引入证书 secrets，所以产物未公证，用户首次打开需要放行 Gatekeeper。将来要接 Developer ID 签名 + 公证（`notarytool` / `stapler`），步骤写在 workflow 的注释里，当前不实现；
+- **手动测试**：Actions → Release → Run workflow（`workflow_dispatch`）。手动触发只构建并上传 artifact，**不创建 Release**，方便先验证流水线（artifact 会被 GitHub 再包一层 zip，下载后解压拿到 `.dmg`）；
+- **本地模拟一次发版**：`UNIVERSAL=1 VERSION=1.2.3 ./scripts/build_app.sh && VERSION=1.2.3 ./scripts/make_dmg.sh`，产物全在 `build/`，用 `hdiutil attach` 打开看一眼、`shasum -a 256 -c` 校验；
+- **签名**：发版保持 ad-hoc 签名（`.app` 与 `.dmg` 都签），不引入证书 secrets，所以产物未公证，用户首次打开需要放行 Gatekeeper。将来要接 Developer ID 签名 + 公证（`notarytool` / `stapler`，直接公证 dmg 更省事），步骤写在 workflow 的注释里，当前不实现；
+- **动作版本**：`actions/checkout@v7`、`actions/upload-artifact@v7`、`softprops/action-gh-release@v3`，均为 Node 24 版本，不再触发 Node 20 弃用告警；
 - **tag 别复用**：发新版请递增 tag（`v1.0.1`、`v1.1.0`…）；重跑同一次 workflow 会更新同名 Release 的资产。
 
 ## 授予辅助功能权限
@@ -199,7 +229,8 @@ Resources/Info.plist                bundle 配置
 Resources/AppIcon.icns              App 图标（由 assets/logo/app-icon/AppIcon.iconset 生成）
 assets/logo/                        Logo 源文件与菜单栏图标（设计交付，含 README 设计说明）
 scripts/build_app.sh                打包脚本（UNIVERSAL / VERSION 环境变量、图标资源复制、ad-hoc 签名）
-.github/workflows/release.yml       打 tag 自动构建通用包并发布 Release
+scripts/make_dmg.sh                 把 build/InputLock.app 打成 DMG 安装镜像（卷图标 + Applications 快捷方式 + 挂载校验 + sha256）
+.github/workflows/release.yml       打 tag 自动构建通用包、打成 DMG 并发布 Release
 docs/CONTRACT.md                    Core 与 App 的接口契约
 ```
 
@@ -210,4 +241,6 @@ docs/CONTRACT.md                    Core 与 App 的接口契约
 - **菜单里没看到某个输入法**：先在「系统设置 › 键盘 › 输入法」里添加它，再重新打开菜单（列表在每次打开菜单时刷新）。
 - **重启后不自动运行**：检查「系统设置 › 通用 › 登录项」，macOS 13 起新注册的登录项需要你手动允许。
 - **打开提示「已损坏」/「无法验证开发者」**：Release 包是 ad-hoc 签名、未公证，属于预期行为。执行 `xattr -dr com.apple.quarantine /Applications/InputLock.app`，或右键 App →「打开」，或去「系统设置 › 隐私与安全性」点「仍要打开」。
+- **双击 dmg 没反应 / 提示无法打开**：同样右键 dmg →「打开」放行一次即可；若挂载后看不到窗口，在 Finder 边栏里点一下 `InputLock <版本>`。
+- **dmg 里没有 Applications 快捷方式**：那是生成物坏了（正常会有），重新下载并用 `shasum -a 256 -c InputLock-<版本>.dmg.sha256` 校验。
 - **覆盖安装后辅助功能失效**：ad-hoc 签名每次构建都不同，去「辅助功能」里取消勾选 InputLock 再加回来即可。
