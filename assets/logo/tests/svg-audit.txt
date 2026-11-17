@@ -1,0 +1,95 @@
+
+=== inputlock-symbol.svg  (1273 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #0e9f7e · gradients 0 · anchors 65
+margins L32.0 R32.0 T42.0 B42.0 · bbox fill 0.504
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== inputlock-symbol-small.svg  (1142 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #0e9f7e · gradients 0 · anchors 56
+margins L28.0 R28.0 T42.0 B32.0 · bbox fill 0.555
+· INFO [off-centre-y] Vertical margins differ (top 42.0, bottom 32.0). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== inputlock-horizontal.svg  (3125 bytes)
+viewBox 0 0 1078 256 · aspect 4.211 (horizontal)
+colours 2: #0e9f7e #13201d · gradients 0 · anchors 191
+margins L32.0 R24.4 T42.0 B18.0 · bbox fill 0.726
+· INFO [complexity] 191 anchor points (library median 75.0, p75 155.0). Check every point earns its place.
+production-readiness score: 99/100 (heuristic)
+
+=== inputlock-stacked.svg  (3710 bytes)
+viewBox 0 20 522 350 · aspect 1.491 (wide)
+colours 2: #0e9f7e #13201d · gradients 0 · anchors 191
+margins L24.0 R24.3 T22.0 B24.4 · bbox fill 0.787
+· INFO [complexity] 191 anchor points (library median 75.0, p75 155.0). Check every point earns its place.
+production-readiness score: 99/100 (heuristic)
+
+=== inputlock-wordmark.svg  (1966 bytes)
+viewBox 0 0 838 256 · aspect 3.273 (horizontal)
+colours 1: #13201d · gradients 0 · anchors 126
+margins L24.0 R24.4 T44.0 B36.0 · bbox fill 0.648
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== app-icon-flat.svg  (11619 bytes)
+viewBox 0 0 1024 1024 · aspect 1.0 (square)
+colours 1: #0e9f7e · gradients 0 · anchors 786
+margins L100.0 R100.0 T100.0 B100.0 · bbox fill 0.648
+▲ WARN [complex] 786 anchor points — more than 95% of comparable reference logos (median 53.0). Simplify: fewer points, merged shapes, less detail.
+production-readiness score: 92/100 (heuristic)
+
+=== app-icon-1024.svg  (22549 bytes)
+viewBox 0 0 1024 1024 · aspect 1.0 (square)
+colours 4: #2bc9a2 #08795f #ffffff #e6f6f1 · gradients 3 · anchors 1507
+margins L100.0 R100.0 T100.0 B100.0 · bbox fill 0.648
+▲ WARN [filter] Uses filters (blur/shadow/glow). They render inconsistently and cannot be printed; use flat shapes.
+▲ WARN [gradient] 3 gradient(s). Keep a flat-colour master; gradients weaken in print and at small sizes (~19% of reference logos use them).
+▲ WARN [low-contrast] Low contrast on #ffffff: #2bc9a2 (2.1:1), #ffffff (1.0:1), #e6f6f1 (1.1:1) — aim for ≥3:1 for logo parts, 4.5:1 for small text.
+▲ WARN [complex] 1507 anchor points — more than 95% of comparable reference logos (median 53.0). Simplify: fewer points, merged shapes, less detail.
+· INFO [transparency] Uses transparency/opacity. Overlap effects need a solid-colour fallback for print and embroidery.
+production-readiness score: 67/100 (heuristic)
+
+=== MenuBarIconDisabledTemplate.svg  (503 bytes)
+viewBox 0 0 18 18 · aspect 1.0 (square)
+colours 1: #000000 · gradients 0 · anchors 38
+margins L1.0 R1.0 T0.0 B1.0 · bbox fill 0.84
+· INFO [off-centre-y] Vertical margins differ (top 0.0, bottom 1.0). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== MenuBarIconDisabledTemplate@2x.svg  (1059 bytes)
+viewBox 0 0 36 36 · aspect 1.0 (square)
+colours 1: #000000 · gradients 0 · anchors 65
+margins L2.0 R2.0 T0.0 B2.0 · bbox fill 0.84
+· INFO [off-centre-y] Vertical margins differ (top 0.0, bottom 2.0). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== MenuBarIconSecureTemplate.svg  (577 bytes)
+viewBox 0 0 18 18 · aspect 1.0 (square)
+colours 1: #000000 · gradients 0 · anchors 38
+margins L1.0 R1.0 T1.0 B1.0 · bbox fill 0.79
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== MenuBarIconSecureTemplate@2x.svg  (639 bytes)
+viewBox 0 0 36 36 · aspect 1.0 (square)
+colours 1: #000000 · gradients 0 · anchors 40
+margins L2.0 R2.0 T2.0 B2.0 · bbox fill 0.79
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== MenuBarIconTemplate.svg  (535 bytes)
+viewBox 0 0 18 18 · aspect 1.0 (square)
+colours 1: #000000 · gradients 0 · anchors 42
+margins L1.0 R1.0 T1.0 B1.0 · bbox fill 0.79
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== MenuBarIconTemplate@2x.svg  (1104 bytes)
+viewBox 0 0 36 36 · aspect 1.0 (square)
+colours 1: #000000 · gradients 0 · anchors 69
+margins L2.0 R2.0 T2.0 B2.0 · bbox fill 0.79
+✔ no issues found
+production-readiness score: 100/100 (heuristic)

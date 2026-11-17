@@ -1,0 +1,23 @@
+{
+  "brand": "InputLock",
+  "tagline": "锁住你的输入法",
+  "brief": "macOS 菜单栏小工具：锁定一个输入法，被系统或应用切走时立即切回；遇到密码框自动切到英文，离开后恢复原输入法及其中英状态。要求现代 macOS 原生质感、简洁、16–18 px 清晰，并且一眼看出“输入法 + 锁定”。",
+  "adjectives": ["锁定", "稳定", "安心", "轻量原生"],
+  "criteria": "成功标准：键盘（输入）与锁（锁定）一眼可读；菜单栏 18 px 三态可区分；单色/反白可用；不仿制系统输入法图标或任何现有商标。",
+  "industry": "software",
+  "mockups": ["app-icon", "readme", "website", "favicon-tab", "sticker", "social"],
+  "nav": ["功能", "下载", "GitHub"],
+  "brand_color": "#0E9F7E",
+  "greyscale": false,
+  "final": true,
+  "round": 3,
+  "designer": "InputLock design",
+  "concepts": [
+    {"name": "键盘锁 Keyboard Lock", "symbol": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-symbol.svg", "lockup": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-horizontal.svg", "stacked": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-stacked.svg",
+     "symbol_on_tile": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-symbol-white.svg", "symbol_on_dark": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-symbol-white.svg", "lockup_on_dark": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-horizontal-white.svg", "stacked_on_dark": "/Users/duegin/Documents/inputAppLock/assets/logo/inputlock-stacked-white.svg",
+     "idea": "键盘就是锁体，锁梁扣在键盘上——你的输入法被锁住了。",
+     "rationale": ["键盘 = 输入，锁梁 = 锁定，两个元素合成一个稳重的剪影", "4 键 + 空格键的网格在 16–18 px 下仍清晰（小尺寸用 3 键加粗版）", "菜单栏三态：锁定（键盘锁）/ 密码框英文（锁体变成 A）/ 未启用（锁梁打开）", "玉绿 #0E9F7E 区别于工具类常见的蓝色，传达“稳、安心”"]}
+  ],
+  "recommendation": "最终方向：键盘锁（第二轮 E，由用户选定）。",
+  "next_steps": ["打包后自动使用 Resources/AppIcon.icns 与菜单栏 template 图标（文件名不变）", "上线前做商标检索与反向图片搜索"]
+}
