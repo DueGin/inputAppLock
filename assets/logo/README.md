@@ -1,7 +1,7 @@
 # InputLock — Logo & Icons
 
-> **App 图标**已换成第三轮的 **F · 键帽上的猫**（由用户选定，2026-11），键盘锁那套图标整体移到 `archive-r2/`，含 `AppIcon-r2-keyboard-lock.icns`。
-> **菜单栏三态图标仍然是键盘锁那一套**，尚未更换。
+> **App 图标与菜单栏图标**都已换成第三轮的 **F · 键帽上的猫**（由用户选定，2026-11）。
+> 键盘锁那一套（App 图标、`AppIcon-r2-keyboard-lock.icns`、菜单栏三态）整体移到 `archive-r2/`。
 > - 第一轮的最终交付（Caret Lock）在 `archive-r1/`。
 > - 第一、二轮的概念稿分别在 `concepts/` 和 `concepts-r2/`。
 
@@ -17,7 +17,20 @@
   - **简化版**（`app-icon-small.svg`）用于 16/32 px，只留猫与键帽两个大形状，去掉耳朵内孔等细节，主体更满。
 - macOS 自己会给 App 图标切圆角，所以画面**满版铺底色、不画圆角**，避免二次圆角。
 
-## 设计理念
+## 菜单栏图标：同一只猫的三种状态
+
+| 状态 | 文件 | 画法 |
+|---|---|---|
+| 正常锁定 | `MenuBarIconTemplate` | 实心的猫趴在实心键帽上（@2x 带一道卷尾的细缝） |
+| 密码框英文模式 | `MenuBarIconSecureTemplate` | 同上，键帽上挖出字母 **A**（@1x 只挖一个倒 V，避免把键帽切碎）；菜单栏另外显示 `EN` |
+| 未启用 | `MenuBarIconDisabledTemplate` | 空心：猫和键帽只留 1 px（@2x 为 2 px）轮廓——「没在守着」 |
+
+- 由 `source/menubar_cat.py` 生成，36 单位网格、16 倍超采样画母版，@2x 与 @1x **分别出图**：@1x 去掉尾巴缝、改用简化的 A。
+- 所有水平边（猫底边 y=20、键帽 y=22..32）落在偶数单位上，缩到 18 px 时正好压在整像素边界，不发虚。
+- 输出纯黑 + alpha 的 template PNG，SVG 源文件由 potrace 从同一母版描出（渲染结果与 PNG 一致）。
+- 测试表：`tests/menubar-states-test-r3.png`（@1x/@2x 放大、浅色/深色菜单栏实际像素）。
+
+## 第二轮（已归档）：键盘锁
 **键盘就是锁体，锁梁扣在键盘上——你的输入法被锁住了。**
 
 - 键盘（4 个按键 + 空格键）代表"输入"，锁梁代表"锁定"。两个元素合成一个稳重、对称、近似方形的剪影。
@@ -32,7 +45,7 @@
 |---|---|---|---|
 | Paper | `#F4F4F1` | 244 244 241 | App 图标底板 |
 | Graphite | `#0A0A0A` | 10 10 10 | App 图标剪影 |
-| Jade（主色） | `#0E9F7E` | 14 159 126 | 符号、单色品牌版（菜单栏那套仍在用） |
+| Jade（主色） | `#0E9F7E` | 14 159 126 | 符号、单色品牌版（第二轮键盘锁符号，已不用于图标） |
 | Ink | `#13201D` | 19 32 29 | 字标 |
 
 > App 图标**不使用品牌色**，只用 Paper + Graphite 两色。绿色留给界面和网页，图标保持中性。
@@ -62,9 +75,11 @@
 | `app-icon/AppIcon.iconset/` | 16/32/128/256/512，每个尺寸 @1x 和 @2x，共 10 张；16–64 px 用简化裁切 |
 | `../../Resources/AppIcon.icns` | 用 `iconutil -c icns` 生成，已覆盖到第三轮 |
 | `archive-r2/` | 第二轮键盘锁 App 图标整套 + `AppIcon-r2-keyboard-lock.icns` |
-| `menubar/MenuBarIconTemplate.png` / `@2x.png` / `.svg` / `@2x.svg` | 菜单栏 · 锁定（键盘锁） |
-| `menubar/MenuBarIconSecureTemplate…` | 菜单栏 · 密码框英文模式（锁体内是 A） |
-| `menubar/MenuBarIconDisabledTemplate…` | 菜单栏 · 未启用（锁梁打开） |
+| `menubar/MenuBarIconTemplate.png` / `@2x.png` / `.svg` / `@2x.svg` | 菜单栏 · 锁定（猫趴在键帽上） |
+| `menubar/MenuBarIconSecureTemplate…` | 菜单栏 · 密码框英文模式（键帽上挖出 A） |
+| `menubar/MenuBarIconDisabledTemplate…` | 菜单栏 · 未启用（空心轮廓） |
+| `source/menubar_cat.py` | 生成上面 12 个菜单栏文件（`uv run --with pillow --with numpy --with potracer python -I source/menubar_cat.py menubar`） |
+| `archive-r2/menubar/` | 第二轮键盘锁的菜单栏三态 |
 | `presentation/presentation-board.png` / `.html` / `spec.json` | 展示板，含 App 图标、README、网站、浏览器标签、贴纸、社交头像的 mockup |
 | `tests/svg-audit.txt` | svg_audit 完整报告 |
 | `tests/preview.png` / `.html` | 测试表：尺寸阶梯、16/32/48 px 像素测试、各种背景、单色、灰度、模糊、镜像、旋转、竞品并排 |
@@ -90,8 +105,8 @@
   | 密码框英文模式 | `MenuBarIconSecureTemplate` |
   | 未启用 / 暂停 | `MenuBarIconDisabledTemplate` |
 
-- 18 px 与 36 px 两个尺寸分别按像素网格单独绘制：@1x 是 3 个键，@2x 是 4 个键，这是为了像素对齐，属于刻意的差异。
-- 所有可见像素已校验为纯黑 RGB(0,0,0)，只有透明度变化。
+- 18 px 与 36 px 两个尺寸分别出图：@1x 去掉尾巴缝、A 简化成倒 V，这是为了小尺寸清晰，属于刻意的差异。
+- 所有可见像素都是纯黑 RGB(0,0,0)，只有透明度变化。
 
 ## 使用规范
 - **留白**：符号四周至少留出一个按键的宽度（锁体宽度的约 1/7）。
@@ -123,7 +138,11 @@
 
 app-icon-1024 的扣分来自渐变、投影滤镜和低对比，这些都是 App 图标有意的效果。这个文件只用来生成 PNG，不作为 logo 母版。
 
-**菜单栏图标**
+**菜单栏图标（第三轮）**
+- 三态在 18/36 px 的浅色和深色菜单栏上都可以区分：实心 / 实心 + 键帽上的 A / 空心轮廓。
+- 迭代中的修正：猫原本身体太扁、右耳像角，改成半椭圆背 + 圆头 + 竖直三角耳；@1x 的 A 原本把键帽切成碎块，改为倒 V；空心版不再描尾巴缝。
+
+**菜单栏图标（第二轮，已归档）**
 - 三态在 18/36 px 的浅色和深色菜单栏上都可以区分：
   - 键盘网格：锁定
   - 字母 A：密码框英文模式
