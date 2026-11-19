@@ -1,8 +1,21 @@
-# InputLock — Logo & Icons（最终版：键盘锁）
+# InputLock — Logo & Icons
 
-> 当前最终方向是第二轮的 **E · 键盘锁**，由用户选定。
-> - 第一轮的最终交付（Caret Lock）已整体移到 `archive-r1/`，包括旧的 `AppIcon-r1.icns`。
+> **App 图标**已换成第三轮的 **F · 键帽上的猫**（由用户选定，2026-11），键盘锁那套图标整体移到 `archive-r2/`，含 `AppIcon-r2-keyboard-lock.icns`。
+> **菜单栏三态图标仍然是键盘锁那一套**，尚未更换。
+> - 第一轮的最终交付（Caret Lock）在 `archive-r1/`。
 > - 第一、二轮的概念稿分别在 `concepts/` 和 `concepts-r2/`。
+
+## App 图标：键帽上的猫
+
+**猫睡在键帽上把键压住，输入源就不会乱跳。**
+
+- 表达的是产品的核心：输入源停住不动。主体是"按住"和"安静"，正好是 macOS 输入法乱跳的反面。
+- 刻意**不出现任何具体语言**（不画中/英或 🌐）：本工具对所有输入源一视同仁，法/英、德/英、中/英都适用。
+- 视觉语言：近白底板 + 纯黑剪影、单一形状、图标内无文字、无渐变、无品牌色——和 Magpie、Alma 这类独立开发者工具同一路数。
+- 两种裁切：
+  - **完整版**（`app-icon-1024.svg`）用于 64 px 以上，保留猫眼闭线、耳朵内孔和卷尾的白色分隔。
+  - **简化版**（`app-icon-small.svg`）用于 16/32 px，只留猫与键帽两个大形状，去掉耳朵内孔等细节，主体更满。
+- macOS 自己会给 App 图标切圆角，所以画面**满版铺底色、不画圆角**，避免二次圆角。
 
 ## 设计理念
 **键盘就是锁体，锁梁扣在键盘上——你的输入法被锁住了。**
@@ -17,11 +30,12 @@
 ## 色值
 | 名称 | HEX | RGB | 用途 |
 |---|---|---|---|
-| Jade（主色） | `#0E9F7E` | 14 159 126 | 符号、单色品牌版 |
-| Jade Light | `#2BC9A2` | 43 201 162 | App 图标渐变顶部 |
-| Jade Deep | `#08795F` | 8 121 95 | App 图标渐变底部 |
+| Paper | `#F4F4F1` | 244 244 241 | App 图标底板 |
+| Graphite | `#0A0A0A` | 10 10 10 | App 图标剪影 |
+| Jade（主色） | `#0E9F7E` | 14 159 126 | 符号、单色品牌版（菜单栏那套仍在用） |
 | Ink | `#13201D` | 19 32 29 | 字标 |
-| White | `#FFFFFF` → `#E6F6F1` | — | App 图标上的锁，带极浅的渐变 |
+
+> App 图标**不使用品牌色**，只用 Paper + Graphite 两色。绿色留给界面和网页，图标保持中性。
 
 ## 构造
 - 画布 256×256，以 4 为单位。
@@ -42,11 +56,12 @@
 | `inputlock-stacked.svg` / `-black.svg` / `-white.svg` | 竖版 lockup 及其单色 / 反白 |
 | `inputlock-wordmark.svg` | 纯字标 |
 | `variants/` | export_variants.py 导出：黑、白、品牌单色、方形、favicon、app-icon 的 SVG 与 PNG（512 / 1200） |
-| `app-icon/app-icon-1024.svg` / `.png` | macOS App 图标源：824 px squircle 底板放在 1024 画布上（Big Sur 网格），Jade 渐变加轻投影 |
-| `app-icon/app-icon-small.svg` | App 图标 16/32 px 专用源（使用小尺寸版） |
-| `app-icon/app-icon-flat.svg` | 扁平无滤镜版，供印刷和审核用 |
-| `app-icon/AppIcon.iconset/` | 16/32/128/256/512，每个尺寸 @1x 和 @2x，共 10 张 |
-| `../../Resources/AppIcon.icns` | 用 `iconutil -c icns` 生成，已覆盖第一轮版本 |
+| `app-icon/app-icon-1024.svg` / `.png` | macOS App 图标源：满版 1024 画布（Paper 底 + 轻投影 + 猫），由 macOS 负责切圆角 |
+| `app-icon/app-icon-small.svg` | App 图标 16/32 px 专用源（简化裁切，去掉耳朵内孔等细节） |
+| `app-icon/app-icon-flat.svg` | 扁平无投影版，供印刷和审核用 |
+| `app-icon/AppIcon.iconset/` | 16/32/128/256/512，每个尺寸 @1x 和 @2x，共 10 张；16–64 px 用简化裁切 |
+| `../../Resources/AppIcon.icns` | 用 `iconutil -c icns` 生成，已覆盖到第三轮 |
+| `archive-r2/` | 第二轮键盘锁 App 图标整套 + `AppIcon-r2-keyboard-lock.icns` |
 | `menubar/MenuBarIconTemplate.png` / `@2x.png` / `.svg` / `@2x.svg` | 菜单栏 · 锁定（键盘锁） |
 | `menubar/MenuBarIconSecureTemplate…` | 菜单栏 · 密码框英文模式（锁体内是 A） |
 | `menubar/MenuBarIconDisabledTemplate…` | 菜单栏 · 未启用（锁梁打开） |
