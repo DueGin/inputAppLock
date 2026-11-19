@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: AppSettings?
     private var controller: LockController?
     private var statusMenu: StatusMenuController?
+    private var updates: UpdateController?
 
     /// main.swift 的顶层代码不是主 actor 隔离的，所以入口对象用 nonisolated init。
     nonisolated override init() {
@@ -18,7 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let settings = AppSettings()
         let controller = LockController(settings: settings)
-        let statusMenu = StatusMenuController(settings: settings, controller: controller)
+        let updates = UpdateController(settings: settings)
+        let statusMenu = StatusMenuController(settings: settings, controller: controller, updates: updates)
 
         controller.onStateChange = { [weak statusMenu] state in
             statusMenu?.apply(state: state)
@@ -27,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.settings = settings
         self.controller = controller
         self.statusMenu = statusMenu
+        self.updates = updates
+        updates.onChange = { [weak statusMenu] in
+            statusMenu?.refresh()
+        }
 
         // 先让菜单层补上「首次运行默认锁定当前输入法」，再启动 Core。
         // 是否真正锁定由 Core 自己读 settings.isEnabled 决定，这里无条件 start()。
@@ -36,9 +42,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 未授予辅助功能权限时，启动即弹出系统授权提示（已授权则无操作）。
         AccessibilityPermission.requestIfNeeded()
+
+        // 每天自动检查一次新版本（可在菜单里关闭）。
+        updates.start()
+    }
+
+    /// 安装更新途中退出：先取消下载 / 卸载 dmg / 删暂存目录，清理完再退出。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let updates else { return .terminateNow }
+        let canQuitNow = updates.prepareForTermination {
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return canQuitNow ? .terminateNow : .terminateLater
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        updates?.stop()
         controller?.stop()
     }
 }

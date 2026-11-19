@@ -53,6 +53,7 @@ enum AccessibilityPermission {
 
 ## App（pi 拥有 Package.swift、Sources/InputLock/App/**、Resources/Info.plist、scripts/build_app.sh、README.md）
 - `AppSettings: LockSettingsProviding`（UserDefaults 持久化，可写属性），`main.swift`、`AppDelegate`、`StatusMenuController`、`LaunchAtLogin`（SMAppService.mainApp）。
-- 菜单栏：状态显示、启用开关、"锁定输入法"子菜单（列出 selectableKeyboardSources，勾选当前锁定项；"锁定当前输入法"快捷项）、密码框切英文开关、英文键盘选择子菜单、开机启动、辅助功能权限状态/授权入口、退出。
+- 菜单栏：状态显示、启用开关、"锁定输入法"子菜单（列出 selectableKeyboardSources，勾选当前锁定项；"锁定当前输入法"快捷项）、密码框切英文开关、英文键盘选择子菜单、开机启动、辅助功能权限状态/授权入口、检查更新 / 自动检查更新 / 当前版本、退出。
+- 更新功能全部在 `Sources/InputLock/App/Update/`，不依赖 Core。
 - 菜单打开时刷新输入法列表；修改设置后调用 `controller.settingsDidChange()`。
 - Info.plist：LSUIElement=true，bundle id `com.duegin.InputLock`。

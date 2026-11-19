@@ -15,6 +15,9 @@ final class AppSettings: LockSettingsProviding {
         static let lockedInputModeID = "InputLock.lockedInputModeID"
         static let englishSourceID = "InputLock.englishSourceID"
         static let switchToEnglishInSecureFields = "InputLock.switchToEnglishInSecureFields"
+        static let automaticallyChecksForUpdates = "InputLock.automaticallyChecksForUpdates"
+        static let skippedUpdateVersion = "InputLock.skippedUpdateVersion"
+        static let lastUpdateCheckDate = "InputLock.lastUpdateCheckDate"
     }
 
     private let defaults: UserDefaults
@@ -23,7 +26,8 @@ final class AppSettings: LockSettingsProviding {
         self.defaults = defaults
         defaults.register(defaults: [
             Key.isEnabled: true,
-            Key.switchToEnglishInSecureFields: true
+            Key.switchToEnglishInSecureFields: true,
+            Key.automaticallyChecksForUpdates: true
         ])
     }
 
@@ -53,6 +57,25 @@ final class AppSettings: LockSettingsProviding {
     var switchToEnglishInSecureFields: Bool {
         get { defaults.bool(forKey: Key.switchToEnglishInSecureFields) }
         set { defaults.set(newValue, forKey: Key.switchToEnglishInSecureFields) }
+    }
+
+    // MARK: - 更新
+
+    /// 是否每天自动检查一次新版本（默认开启）。
+    var automaticallyChecksForUpdates: Bool {
+        get { defaults.bool(forKey: Key.automaticallyChecksForUpdates) }
+        set { defaults.set(newValue, forKey: Key.automaticallyChecksForUpdates) }
+    }
+
+    /// 用户选择「跳过这个版本」的版本号；自动检查时不再提醒它，手动检查仍会显示。
+    var skippedUpdateVersion: String? {
+        get { defaults.string(forKey: Key.skippedUpdateVersion) }
+        set { defaults.set(newValue, forKey: Key.skippedUpdateVersion) }
+    }
+
+    var lastUpdateCheckDate: Date? {
+        get { defaults.object(forKey: Key.lastUpdateCheckDate) as? Date }
+        set { defaults.set(newValue, forKey: Key.lastUpdateCheckDate) }
     }
 
     // MARK: - 便捷操作

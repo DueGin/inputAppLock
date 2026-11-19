@@ -113,6 +113,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: InputLock ${{ steps.version.outputs.version }}
           generate_release_notes: true
+          # tag 带 `-`（如 v1.1.0-beta.1）就标成预发布：releases/latest 不会返回它，App 的自动更新也不会推给正式版用户
+          prerelease: ${{ contains(github.ref_name, '-') }}
           fail_on_unmatched_files: true
           files: |
             build/InputLock-*.dmg
@@ -141,4 +143,4 @@ jobs:
 
             卸载：退出程序 → 删除 `/Applications/InputLock.app` → 在「系统设置 › 通用 › 登录项」里移除残留条目。
 
-            更新：下载新版本 dmg 覆盖安装即可（ad-hoc 签名变化后，辅助功能权限可能需要重新勾选一次）。
+            更新：已安装 1.1 及以上版本的，可直接在菜单栏「检查更新…」里一键更新；更早的版本请下载新 dmg 覆盖安装。ad-hoc 签名每次构建都会变，更新后需要在辅助功能里重新授权一次。

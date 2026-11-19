@@ -30,6 +30,8 @@
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
+    <key>InputLockUpdateRepository</key>
+    <string>DueGin/inputAppLock</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHumanReadableCopyright</key>

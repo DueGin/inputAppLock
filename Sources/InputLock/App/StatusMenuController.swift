@@ -11,6 +11,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     private let settings: AppSettings
     private let controller: LockController
+    private let updates: UpdateController
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
 
@@ -25,9 +26,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         init(_ source: InputSourceInfo) { self.source = source }
     }
 
-    init(settings: AppSettings, controller: LockController) {
+    init(settings: AppSettings, controller: LockController, updates: UpdateController) {
         self.settings = settings
         self.controller = controller
+        self.updates = updates
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -227,6 +229,17 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             menu.addItem(detail)
         }
 
+        if let update = updates.availableUpdate, updates.phase == .idle {
+            let install = NSMenuItem(
+                title: "新版本 \(update.version) 可用，点此更新…",
+                action: #selector(installUpdate(_:)),
+                keyEquivalent: ""
+            )
+            install.target = self
+            install.image = NSImage(systemSymbolName: "arrow.down.circle.fill", accessibilityDescription: "有新版本")
+            menu.addItem(install)
+        }
+
         menu.addItem(.separator())
 
         menu.addItem(checkbox(
@@ -261,6 +274,12 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             )
             openSettings.target = self
             menu.addItem(openSettings)
+        }
+
+        menu.addItem(.separator())
+
+        for item in updateItems() {
+            menu.addItem(item)
         }
 
         menu.addItem(.separator())
@@ -376,6 +395,45 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         return item
     }
 
+    private func updateItems() -> [NSMenuItem] {
+        guard updates.isSupported else {
+            let item = NSMenuItem(title: "检查更新（仅打包后的 .app 可用）", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            return [item]
+        }
+
+        let check: NSMenuItem
+        switch updates.phase {
+        case .checking:
+            check = NSMenuItem(title: "正在检查更新…", action: nil, keyEquivalent: "")
+            check.isEnabled = false
+        case .installing:
+            check = NSMenuItem(title: "正在下载并安装更新…", action: nil, keyEquivalent: "")
+            check.isEnabled = false
+        case .relaunching:
+            check = NSMenuItem(title: "正在重新启动…", action: nil, keyEquivalent: "")
+            check.isEnabled = false
+        case .idle:
+            check = NSMenuItem(title: "检查更新…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
+            check.target = self
+        }
+
+        let automatic = checkbox(
+            title: "自动检查更新",
+            action: #selector(toggleAutomaticUpdateChecks(_:)),
+            on: settings.automaticallyChecksForUpdates
+        )
+
+        let version = NSMenuItem(
+            title: "当前版本 \(updates.currentVersion?.description ?? "未知")",
+            action: nil,
+            keyEquivalent: ""
+        )
+        version.isEnabled = false
+
+        return [check, automatic, version]
+    }
+
     private func checkbox(title: String, action: Selector, on: Bool) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
@@ -456,6 +514,19 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         if let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    @objc private func checkForUpdates(_ sender: NSMenuItem) {
+        updates.checkForUpdates(userInitiated: true)
+    }
+
+    @objc private func installUpdate(_ sender: NSMenuItem) {
+        updates.installAvailableUpdate()
+    }
+
+    @objc private func toggleAutomaticUpdateChecks(_ sender: NSMenuItem) {
+        settings.automaticallyChecksForUpdates.toggle()
+        sender.state = settings.automaticallyChecksForUpdates ? .on : .off
     }
 
     @objc private func quit(_ sender: NSMenuItem) {

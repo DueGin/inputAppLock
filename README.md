@@ -67,7 +67,40 @@ InputLock 状态摘要
 shasum -a 256 -c InputLock-<版本>.dmg.sha256
 ```
 
-> 每次更新都是下载新 dmg 覆盖安装；ad-hoc 签名每次都会变，所以覆盖后可能要在辅助功能里把 InputLock 取消勾选再加回来一次。
+## 检查更新
+
+从 1.1 起 InputLock 内置了更新功能，不需要再手动下载 dmg：
+
+- **自动检查**：启动后约 15 秒检查一次，之后每小时看一眼；**成功**检查过就 24 小时内不再请求。开机时网络还没连上导致的失败不计入，下一个小时会重试。可在菜单「自动检查更新」里关掉。
+- **手动检查**：菜单 →「检查更新…」，没有新版本会直接告诉你当前版本和 GitHub 上的最新版本。
+- **跳过某个版本**：更新弹窗右下角勾选「跳过这个版本」，之后自动检查不再提醒它；手动检查仍会显示。
+
+更新的完整流程：
+
+1. 用 GitHub Releases API 取最新正式版，版本号按数字逐段比较。draft、预发布版，以及 tag 带 `-` 后缀（如 `v1.1.0-beta.1`）的版本都不会推给正式版用户；
+2. 只从 GitHub 的 https 地址下载 `InputLock-<版本>.dmg` 和同名 `.dmg.sha256`，**校验 SHA-256**，不一致立即中止；下载量超过发布信息里声明的大小也会中止；
+3. 挂载 dmg，检查里面的 `InputLock.app`：bundle id、版本号、`LSMinimumSystemVersion` 不高于本机系统、可执行文件包含本机 CPU 架构，最后跑 `codesign --verify --deep --strict`。任何一项不过都保留当前版本；
+4. 把新应用 `ditto` 复制到当前应用所在目录下的隐藏暂存目录 `.InputLock-update-*`（同一卷，替换是原子操作）；
+5. 退出 InputLock，由一个独立的 `/bin/sh` 脚本等旧进程退出后 `mv` 换上新版并重新打开。
+
+替换脚本的失败处理：
+
+- 旧版移不开：什么都不改，重新打开旧版；
+- 新版放不进去：把旧版挪回原位再打开；
+- 连旧版也挪不回去：**绝不删除备份**，直接从备份位置启动，并告诉你备份在哪；
+- 只有替换成功才会重置辅助功能授权，失败时旧版仍然有效的授权不会被清掉；
+- 结果写进 `~/Library/Application Support/InputLock/update-result`，下次启动若发现失败会弹窗说明原因；
+- 下载或校验途中退出 App，会先取消并卸载 dmg、删掉暂存文件再退出；上次被强退留下的暂存目录会在下次启动时清理。
+
+替换脚本的日志在 `~/Library/Logs/InputLock/update.log`。
+
+几个前提和限制：
+
+- 只能更新**装在可写位置**的 `InputLock.app`（比如 `/Applications`）。直接跑 `.build` 下的裸二进制、或从 dmg、下载目录直接运行时，会退回到「打开发布页面手动下载」。
+- 如果 App 被 macOS 的 App Translocation 移到了只读的随机路径，会提示先把 InputLock 拖进「应用程序」再打开，然后重试。
+- 下载源是仓库的 GitHub Release，可以用 Info.plist 的 `InputLockUpdateRepository`（`owner/repo`）改成自己的发布地址。
+- **安全边界**：SHA-256 文件和安装包来自同一个 Release，只能防下载损坏，**不能防仓库或发版流水线被盗用后发布的恶意版本**；ad-hoc 签名同样无法证明发布者身份。更新的可信程度等同于「信任这个 GitHub 仓库的 Release」，和手动下载 dmg 一样。
+- 更新后需要重新授予一次辅助功能：ad-hoc 签名每次构建都不同，系统会把它当成另一个 App。安装脚本在启动新版前会执行 `tccutil reset Accessibility com.duegin.InputLock` 清掉失效的旧授权记录，这样新版才能正常弹出授权提示；换成 Developer ID 正式签名后这一步会自动跳过。
 
 ## 支持的输入法
 
@@ -181,6 +214,9 @@ push 匹配 `v*` 的 tag 后，GitHub Actions（`macos-15`，arm64 runner）自�
 3. `VERSION=<版本> ./scripts/make_dmg.sh` 打出拖拽安装的 `InputLock-<版本>.dmg`（内含 `InputLock.app` + `Applications` 快捷方式 + 卷图标），并生成 `.dmg.sha256`；
 4. 用 `softprops/action-gh-release@v3` 创建 Release：自动生成 release notes，**只上传 dmg 与 dmg.sha256**，正文附带安装说明（双击 dmg、拖进 Applications、`xattr` / 右键放行 Gatekeeper、辅助功能授权）。
 
+> 内置更新功能直接消费这两个资产：`releases/latest` 取版本号，`InputLock-<版本>.dmg` 是安装包，`.dmg.sha256` 用于安装前校验。
+> 因此**文件名要保持 `InputLock-<版本>.dmg` 的格式**，改发版脚本时别动这个命名，否则更新会被判定为“这个版本没有安装包”。
+
 > 发版不再产出 zip。`.app` 只是 runner 上的中间产物；需要 zip 就本地自己打：
 > `ditto -c -k --keepParent --norsrc --noextattr build/InputLock.app build/InputLock.zip`。
 
@@ -224,6 +260,12 @@ Sources/InputLock/App/
   StatusMenuController.swift        菜单栏图标与菜单
   AppSettings.swift                 UserDefaults 设置（实现 LockSettingsProviding）
   LaunchAtLogin.swift               SMAppService 开机启动
+  Update/
+    AppVersion.swift                版本号解析与比较（含预发布版）
+    UpdateFeed.swift                GitHub Release 模型、更新源、是否有新版本的判断
+    UpdateClient.swift              请求最新版本、下载安装包与 .sha256
+    UpdateInstaller.swift           SHA-256 校验、挂载、验证、暂存、退出后替换
+    UpdateController.swift          自动/手动检查、更新弹窗、下载进度窗口
 Sources/InputLock/Core/             输入法切换 / 焦点检测 / 锁定逻辑（Core 模块）
 Resources/Info.plist                bundle 配置
 Resources/AppIcon.icns              App 图标（由 assets/logo/app-icon/AppIcon.iconset 生成）
@@ -232,6 +274,7 @@ scripts/build_app.sh                打包脚本（UNIVERSAL / VERSION 环境变
 scripts/make_dmg.sh                 把 build/InputLock.app 打成 DMG 安装镜像（卷图标 + Applications 快捷方式 + 挂载校验 + sha256）
 .github/workflows/release.yml       打 tag 自动构建通用包、打成 DMG 并发布 Release
 docs/CONTRACT.md                    Core 与 App 的接口契约
+Tests/InputLockTests/               更新逻辑测试（版本比较、Release 解析、校验文件、替换脚本）
 ```
 
 ## 常见问题
@@ -243,4 +286,5 @@ docs/CONTRACT.md                    Core 与 App 的接口契约
 - **打开提示「已损坏」/「无法验证开发者」**：Release 包是 ad-hoc 签名、未公证，属于预期行为。执行 `xattr -dr com.apple.quarantine /Applications/InputLock.app`，或右键 App →「打开」，或去「系统设置 › 隐私与安全性」点「仍要打开」。
 - **双击 dmg 没反应 / 提示无法打开**：同样右键 dmg →「打开」放行一次即可；若挂载后看不到窗口，在 Finder 边栏里点一下 `InputLock <版本>`。
 - **dmg 里没有 Applications 快捷方式**：那是生成物坏了（正常会有），重新下载并用 `shasum -a 256 -c InputLock-<版本>.dmg.sha256` 校验。
-- **覆盖安装后辅助功能失效**：ad-hoc 签名每次构建都不同，去「辅助功能」里取消勾选 InputLock 再加回来即可。
+- **覆盖安装后辅助功能失效**：ad-hoc 签名每次构建都不同，去「辅助功能」里取消勾选 InputLock 再加回来即可。用菜单里的「检查更新」安装时，这一步由更新脚本自动完成，只需在弹出的系统提示里重新勾选一次。
+- **检查更新失败**：多半是网络或 GitHub API 限流（未登录每小时 60 次，程序每天最多查一次，正常不会触顶）。强制检查更新会把错误原因显示出来，也可以点「打开发布页面」手动下载。

@@ -19,6 +19,11 @@ let package = Package(
                 .linkedFramework("ApplicationServices"),
                 .linkedFramework("ServiceManagement")
             ]
+        ),
+        .testTarget(
+            name: "InputLockTests",
+            dependencies: ["InputLock"],
+            path: "Tests/InputLockTests"
         )
     ],
     swiftLanguageVersions: [.v5]
