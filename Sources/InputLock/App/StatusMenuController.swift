@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 /// 菜单栏外壳：状态图标、菜单构建、所有用户操作。
 ///
@@ -493,10 +494,19 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         let target = !LaunchAtLogin.isEnabled
         if let error = LaunchAtLogin.setEnabled(target) {
             NSSound.beep()
-            presentAlert(
-                title: "无法\(target ? "开启" : "关闭")开机启动",
-                message: error.localizedDescription
-            )
+            let message: String
+            switch LaunchAtLogin.location(of: Bundle.main.bundleURL) {
+            case .translocated:
+                message = "InputLock 正在从系统的隔离位置运行。请退出后把它拖进「应用程序」文件夹，再从那里打开。"
+            case .bareBinary:
+                message = "当前直接运行的是编译出的二进制，请先用 scripts/build_app.sh 打包成 .app。"
+            case .appBundle:
+                message = error.localizedDescription
+            }
+            presentAlert(title: "无法\(target ? "开启" : "关闭")开机启动", message: message)
+        } else if target, SMAppService.mainApp.status == .requiresApproval {
+            // macOS 13 起新登录项可能需要用户在系统设置里手动允许
+            SMAppService.openSystemSettingsLoginItems()
         }
         sender.state = LaunchAtLogin.isEnabled ? .on : .off
     }

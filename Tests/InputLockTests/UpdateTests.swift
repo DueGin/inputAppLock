@@ -345,3 +345,31 @@ struct CompatibilityTests {
             currentArchitecture: "arm64", currentSystem: sonoma) == nil)
     }
 }
+
+// MARK: - 开机启动状态文案
+
+@Suite("LaunchAtLogin.description")
+struct LaunchAtLoginTests {
+    let app = URL(fileURLWithPath: "/Applications/InputLock.app")
+    let translocated = URL(fileURLWithPath: "/private/var/folders/ab/AppTranslocation/1234/d/InputLock.app")
+    let bare = URL(fileURLWithPath: "/Users/x/repo/.build/release")
+
+    @Test("从没注册过的正常 .app 返回 notFound，应显示「未开启」而不是「请先打包」")
+    func notFoundInRealApp() {
+        #expect(LaunchAtLogin.description(for: .notFound, bundleURL: app) == "未开启")
+    }
+
+    @Test func notFoundTranslocated() {
+        #expect(LaunchAtLogin.description(for: .notFound, bundleURL: translocated).contains("拖进「应用程序」"))
+    }
+
+    @Test func notFoundBareBinary() {
+        #expect(LaunchAtLogin.description(for: .notFound, bundleURL: bare) == "不可用（请先打包成 .app）")
+    }
+
+    @Test func otherStatuses() {
+        #expect(LaunchAtLogin.description(for: .enabled, bundleURL: app) == "已开启")
+        #expect(LaunchAtLogin.description(for: .notRegistered, bundleURL: app) == "未开启")
+        #expect(LaunchAtLogin.description(for: .requiresApproval, bundleURL: app).contains("登录项"))
+    }
+}
