@@ -6,6 +6,11 @@ import Carbon
 final class FocusMonitor {
     var onSecureFieldChange: ((Bool) -> Void)?
     private(set) var isSecureField = false
+    private(set) var secureInputEnabled = false
+    private(set) var secureInputHolder: String?
+    private(set) var frontmostApp: String?
+    private(set) var axTrusted = false
+    private(set) var focusedElement: String?
 
     private let systemWideElement = AXUIElementCreateSystemWide()
     private var applicationElement: AXUIElement?
@@ -15,6 +20,9 @@ final class FocusMonitor {
     private var nextObserverAttempt: TimeInterval = 0
     private var timer: Timer?
     private var isRunning = false
+    private var holder: SecureInputHolder = .unavailable
+    private var nextHolderQuery: TimeInterval = 0
+    private var lastDecision: SecureInputDecision?
 
     func start() {
         guard !isRunning else { return }
@@ -36,22 +44,53 @@ final class FocusMonitor {
         removeObserver()
         observedProcessID = nil
         isSecureField = false
+        lastDecision = nil
     }
 
     func refresh() {
         guard isRunning else { return }
         let hasPermission = AccessibilityPermission.isTrusted()
-        let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let application = NSWorkspace.shared.frontmostApplication
+        let processID = application?.processIdentifier
         let now = ProcessInfo.processInfo.systemUptime
         if processID != observedProcessID || hasPermission != hadAccessibilityPermission
             || (hasPermission && observer == nil && now >= nextObserverAttempt) {
             rebuildObserver(processID: processID, hasPermission: hasPermission)
         }
 
-        let secure = IsSecureEventInputEnabled() || (hasPermission && focusedElementIsSecure())
-        guard secure != isSecureField else { return }
-        isSecureField = secure
-        onSecureFieldChange?(secure)
+        if now >= nextHolderQuery {
+            holder = SecureInputHolderService.query()
+            nextHolderQuery = now + 0.5
+        }
+        secureInputEnabled = IsSecureEventInputEnabled()
+        axTrusted = hasPermission
+        frontmostApp = application.map {
+            "\($0.localizedName ?? $0.bundleIdentifier ?? "Unknown") (\($0.processIdentifier))"
+        }
+        secureInputHolder = holder.processID.map {
+            let name = NSRunningApplication(processIdentifier: $0)?.localizedName ?? "Unknown"
+            return "pid=\($0) name=\(name)"
+        }
+        let focus = hasPermission ? focusedElementStatus(processID: processID) : nil
+        focusedElement = focus?.description
+        let decision = SecureInputDecision.evaluate(
+            focusedElementIsSecure: focus?.isSecure,
+            secureInputEnabled: secureInputEnabled,
+            holder: holder,
+            frontmostProcessID: processID
+        )
+        if decision != lastDecision {
+            InputLog.write(
+                "focus secure=\(decision.isSecure) rule=\(decision.rule.rawValue)"
+                    + " flag=\(secureInputEnabled) holder=\(secureInputHolder ?? "none")"
+                    + " frontmost=\(frontmostApp ?? "none") axTrusted=\(hasPermission)"
+                    + " focused=\(focusedElement ?? "unavailable")"
+            )
+            lastDecision = decision
+        }
+        guard decision.isSecure != isSecureField else { return }
+        isSecureField = decision.isSecure
+        onSecureFieldChange?(isSecureField)
     }
 
     private func rebuildObserver(processID: pid_t?, hasPermission: Bool) {
@@ -97,26 +136,32 @@ final class FocusMonitor {
         applicationElement = nil
     }
 
-    private func focusedElementIsSecure() -> Bool {
+    private func focusedElementStatus(processID: pid_t?) -> (isSecure: Bool, description: String)? {
+        guard let processID else { return nil }
         let frontmostElement = applicationElement
-            ?? NSWorkspace.shared.frontmostApplication.map {
-                AXUIElementCreateApplication($0.processIdentifier)
-            }
-        guard var element = frontmostElement.flatMap({
-            elementAttribute($0, kAXFocusedUIElementAttribute)
-        }) ?? elementAttribute(systemWideElement, kAXFocusedUIElementAttribute)
-        else { return false }
+            ?? AXUIElementCreateApplication(processID)
+        guard var element = elementAttribute(frontmostElement, kAXFocusedUIElementAttribute)
+            ?? elementAttribute(systemWideElement, kAXFocusedUIElementAttribute) else { return nil }
+        var elementProcessID: pid_t = 0
+        guard AXUIElementGetPid(element, &elementProcessID) == .success,
+              elementProcessID == processID else { return nil }
+        var description: String?
 
         for _ in 0..<5 {
-            let role = stringAttribute(element, kAXRoleAttribute)
+            guard let role = stringAttribute(element, kAXRoleAttribute) else { return nil }
             let subrole = stringAttribute(element, kAXSubroleAttribute)
+            let elementDescription = [role, subrole].compactMap { $0 }.joined(separator: "/")
+            if description == nil { description = elementDescription }
             if role == kAXSecureTextFieldSubrole as String
-                || subrole == kAXSecureTextFieldSubrole as String { return true }
+                || subrole == kAXSecureTextFieldSubrole as String {
+                return (true, elementDescription)
+            }
             guard let parent = elementAttribute(element, kAXParentAttribute),
                   !CFEqual(parent, element) else { break }
             element = parent
         }
-        return false
+        guard let description else { return nil }
+        return (false, description)
     }
 
     private func elementAttribute(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {

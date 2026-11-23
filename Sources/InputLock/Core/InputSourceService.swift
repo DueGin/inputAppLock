@@ -10,6 +10,8 @@ struct InputSourceInfo: Hashable {
 
 @MainActor
 enum InputSourceService {
+    private(set) static var lastSwitchError: String?
+
     static func selectableKeyboardSources() -> [InputSourceInfo] {
         var seen = Set<SourceIdentifier>()
         return keyboardSources().compactMap { source in
@@ -36,13 +38,17 @@ enum InputSourceService {
 
     @discardableResult
     static func select(id: String, inputModeID: String?) -> Bool {
+        lastSwitchError = nil
         if matches(current(), id: id, inputModeID: inputModeID) { return true }
         let sources = keyboardSources()
         guard let target = matchingSource(in: sources, id: id, inputModeID: inputModeID),
-              let targetInfo = information(for: target) else { return false }
+              let targetInfo = information(for: target) else {
+            recordSwitchError("Input source unavailable: \(id) mode=\(inputModeID ?? "none")")
+            return false
+        }
         if matches(current(), id: targetInfo.id, inputModeID: targetInfo.inputModeID) { return true }
 
-        _ = TISSelectInputSource(target)
+        selectAndRecordError(target)
         if matches(current(), id: targetInfo.id, inputModeID: targetInfo.inputModeID) { return true }
 
         if needsKeyboardLayoutBridge(target),
@@ -50,13 +56,35 @@ enum InputSourceService {
            let bridgeInfo = information(for: bridge),
            SourceIdentifier(bridgeInfo) != SourceIdentifier(targetInfo) {
             if !matches(current(), id: bridgeInfo.id, inputModeID: bridgeInfo.inputModeID) {
-                _ = TISSelectInputSource(bridge)
+                selectAndRecordError(bridge)
             }
             if matches(current(), id: targetInfo.id, inputModeID: targetInfo.inputModeID) { return true }
-            _ = TISSelectInputSource(target)
+            selectAndRecordError(target)
         }
 
-        return matches(current(), id: targetInfo.id, inputModeID: targetInfo.inputModeID)
+        let selected = current()
+        let succeeded = matches(selected, id: targetInfo.id, inputModeID: targetInfo.inputModeID)
+        if !succeeded {
+            recordSwitchError(
+                "Input source verification failed: expected=\(targetInfo.id)"
+                    + " mode=\(targetInfo.inputModeID ?? "none") current=\(selected?.id ?? "none")"
+                    + " mode=\(selected?.inputModeID ?? "none")"
+            )
+        }
+        return succeeded
+    }
+
+    private static func selectAndRecordError(_ source: TISInputSource) {
+        let status = TISSelectInputSource(source)
+        guard status != noErr else { return }
+        recordSwitchError(
+            "TISSelectInputSource status=\(status) source="
+                + "\(stringProperty(source, kTISPropertyInputSourceID) ?? "unknown")"
+        )
+    }
+
+    private static func recordSwitchError(_ error: String) {
+        lastSwitchError = lastSwitchError.map { "\($0); \(error)" } ?? error
     }
 
     static func defaultEnglishSource() -> InputSourceInfo? {

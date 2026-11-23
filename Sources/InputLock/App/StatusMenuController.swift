@@ -20,6 +20,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     private var state: LockState = .disabled
     /// 最近一次拉取的输入法列表（已按名称排序）。
     private var sources: [InputSourceInfo] = []
+    /// 「诊断信息…」窗口，懒创建后复用（关掉不销毁，保留位置与大小）。
+    private var diagnosticsPanel: DiagnosticsPanel?
 
     /// 菜单项里携带 InputSourceInfo（struct 不能直接塞 representedObject）。
     private final class SourceRef: NSObject {
@@ -224,6 +226,11 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         summary.isEnabled = false
         menu.addItem(summary)
 
+        // 切不回来时在状态行下面补一条橙色提示（只影响菜单文字，不动三态图标）。
+        if let warning = switchBackWarning() {
+            menu.addItem(warningItem(warning))
+        }
+
         if let locked = lockedSourceInfo() {
             let detail = NSMenuItem(title: "目标输入法：\(locked.name)", action: nil, keyEquivalent: "")
             detail.isEnabled = false
@@ -276,6 +283,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             openSettings.target = self
             menu.addItem(openSettings)
         }
+        menu.addItem(diagnosticsItem())
 
         menu.addItem(.separator())
 
@@ -288,6 +296,67 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         let quit = NSMenuItem(title: "退出 InputLock", action: #selector(quit(_:)), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
+    }
+
+    /// 「诊断信息…」入口，紧挨着辅助功能权限，方便排查「切不回来」时直接点开。
+    private func diagnosticsItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "诊断信息…", action: #selector(showDiagnostics(_:)), keyEquivalent: "")
+        item.target = self
+        item.image = NSImage(systemSymbolName: "stethoscope", accessibilityDescription: "诊断信息")
+        return item
+    }
+
+    /// 橙色 ⚠️ 提示行；点一下直接打开诊断窗口。
+    /// 必须带 target/action 才不会被 `autoenablesItems` 变灰——灰色菜单项会连颜色一起掉。
+    private func warningItem(_ text: String) -> NSMenuItem {
+        let item = NSMenuItem(title: "⚠️ \(text)", action: #selector(showDiagnostics(_:)), keyEquivalent: "")
+        item.target = self
+        item.attributedTitle = NSAttributedString(
+            string: "⚠️ \(text)",
+            attributes: [
+                .foregroundColor: NSColor.systemOrange,
+                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            ]
+        )
+        return item
+    }
+
+    /// 「无法切回」的判定：最近一次切换报错，或当前输入源既不是锁定源也不是英文源。
+    /// 只有启用锁定、且已经设过目标输入法时才提示，否则每次开菜单都会误报。
+    private func switchBackWarning() -> String? {
+        guard settings.isEnabled else { return nil }
+        let diagnostics = controller.diagnostics
+        if let error = diagnostics.lastSwitchError?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !error.isEmpty {
+            return "切换输入法失败：\(truncated(error))，点此查看诊断"
+        }
+
+        guard let lockedID = settings.lockedSourceID else { return nil }
+        guard let current = InputSourceService.current() else { return nil }
+        let isLocked = InputSourceService.matches(
+            current,
+            id: lockedID,
+            inputModeID: settings.lockedInputModeID
+        )
+        guard !isLocked, !isEnglishSource(current) else { return nil }
+        return "无法切回锁定输入法（当前：\(current.name)），点此查看诊断"
+    }
+
+    /// 当前输入源是否就是设置里那个英文源（没指定时按 Core 的默认英文源算）。
+    private func isEnglishSource(_ current: InputSourceInfo) -> Bool {
+        let configured = settings.englishSourceID.flatMap { identifier in
+            sources.first { $0.id == identifier && $0.isASCIICapable }
+        }
+        if let english = configured ?? InputSourceService.defaultEnglishSource() {
+            return InputSourceService.matches(current, id: english.id, inputModeID: english.inputModeID)
+        }
+        return current.isASCIICapable
+    }
+
+    /// 菜单一行放不下太长的错误，截断到 70 个字符。
+    private func truncated(_ text: String, limit: Int = 70) -> String {
+        guard text.count > limit else { return text }
+        return String(text.prefix(limit)) + "…"
     }
 
     private func statusSummary() -> String {
@@ -517,6 +586,16 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.refresh()
         }
+    }
+
+    @objc private func showDiagnostics(_ sender: NSMenuItem) {
+        let report = DiagnosticsReport.text(
+            for: controller.diagnostics,
+            switchToEnglishInSecureFields: settings.switchToEnglishInSecureFields
+        )
+        let panel = diagnosticsPanel ?? DiagnosticsPanel()
+        diagnosticsPanel = panel
+        panel.show(text: report)
     }
 
     @objc private func openAccessibilitySettings(_ sender: NSMenuItem) {

@@ -17,6 +17,8 @@ final class LockController {
     private var reconciliationDeadline: TimeInterval?
     private var selectionBlockedUntil: TimeInterval = 0
     private var selectionAttempts = 0
+    private var lastSwitchError: String?
+    private var watchdogTimer: Timer?
     private var isRunning = false
 
     init(settings: LockSettingsProviding) {
@@ -62,11 +64,19 @@ final class LockController {
         }
 
         focusMonitor.start()
+        let watchdog = Timer(timeInterval: 2.5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkLockedSource() }
+        }
+        watchdog.tolerance = 0.25
+        watchdogTimer = watchdog
+        RunLoop.main.add(watchdog, forMode: .common)
         reconcile()
     }
 
     func stop() {
         isRunning = false
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
         cancelReconciliation()
         focusMonitor.stop()
         focusMonitor.onSecureFieldChange = nil
@@ -139,7 +149,17 @@ final class LockController {
             scheduleReconciliation(after: selectionBlockedUntil - now)
             return
         }
+        if selectionAttempts > 0 {
+            let error = "Post-switch verification failed: expected=\(sourceDescription(target) ?? "none")"
+                + " current=\(sourceDescription(InputSourceService.current()) ?? "none")"
+            lastSwitchError = error
+            InputLog.write("selection failed attempt=\(selectionAttempts) error=\(error)")
+        }
         guard selectionAttempts < 3 else {
+            InputLog.write(
+                "selection retries exhausted attempts=\(selectionAttempts) target=\(sourceDescription(target) ?? "none")"
+                    + " error=\(lastSwitchError ?? "unknown")"
+            )
             selectionAttempts = 0
             selectionBlockedUntil = now + 2
             scheduleReconciliation(after: 2)
@@ -148,8 +168,30 @@ final class LockController {
 
         selectionAttempts += 1
         selectionBlockedUntil = now + 0.12
-        _ = InputSourceService.select(target)
+        let succeeded = InputSourceService.select(target)
+        if let error = InputSourceService.lastSwitchError {
+            lastSwitchError = error
+            InputLog.write("selection failed attempt=\(selectionAttempts) error=\(error)")
+        } else if !succeeded {
+            let error = "Input source selection failed: \(sourceDescription(target) ?? "none")"
+            lastSwitchError = error
+            InputLog.write("selection failed attempt=\(selectionAttempts) error=\(error)")
+        }
         scheduleReconciliation(after: 0.12)
+    }
+
+    private func checkLockedSource() {
+        guard isRunning, settings.isEnabled else { return }
+        focusMonitor.refresh()
+        guard !(settings.switchToEnglishInSecureFields && focusMonitor.isSecureField),
+              let lockedSource,
+              !InputSourceService.matches(
+                InputSourceService.current(), id: lockedSource.id, inputModeID: lockedSource.inputModeID
+              ) else { return }
+        cancelReconciliation()
+        selectionAttempts = 0
+        selectionBlockedUntil = 0
+        reconcile()
     }
 
     private func scheduleReconciliation(after delay: TimeInterval) {
@@ -178,12 +220,42 @@ final class LockController {
     private func updateState(_ newState: LockState) {
         guard state != newState else { return }
         state = newState
+        InputLog.write("lock state=\(newState)")
         onStateChange?(newState)
+    }
+
+    private func sourceDescription(_ source: InputSourceInfo?) -> String? {
+        source.map {
+            let mode = $0.inputModeID.map { " mode=\($0)" } ?? ""
+            return "\($0.name) (\($0.id)\(mode))"
+        }
     }
 
     deinit {
         pendingReconciliation?.cancel()
+        watchdogTimer?.invalidate()
         for observer in sourceObservers { DistributedNotificationCenter.default().removeObserver(observer) }
         for observer in workspaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+    }
+}
+
+@MainActor
+extension LockController {
+    var diagnostics: LockDiagnostics {
+        LockDiagnostics(
+            isEnabled: settings.isEnabled,
+            lockedSource: sourceDescription(lockedSource),
+            currentSource: sourceDescription(InputSourceService.current()),
+            desiredSource: sourceDescription(desiredSource),
+            isSecureField: focusMonitor.isSecureField,
+            secureInputEnabled: focusMonitor.secureInputEnabled,
+            secureInputHolder: focusMonitor.secureInputHolder,
+            frontmostApp: focusMonitor.frontmostApp,
+            axTrusted: focusMonitor.axTrusted,
+            focusedElement: focusMonitor.focusedElement,
+            state: state,
+            selectionAttempts: selectionAttempts,
+            lastSwitchError: lastSwitchError
+        )
     }
 }
